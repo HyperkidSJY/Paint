@@ -1,10 +1,15 @@
 package com.example.paint
 
 import android.Manifest
+import android.app.Activity
 import android.app.AlertDialog
 import android.app.Dialog
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.provider.MediaStore
 import android.view.View
 import android.widget.Button
 import android.widget.ImageButton
@@ -23,24 +28,7 @@ class MainActivity : AppCompatActivity() {
     private var drawingView: DrawingView ? = null
     private var mImageButtonCurrentPaint: ImageButton? = null
 
-    private val requestPermission: ActivityResultLauncher<Array<String>> =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()){
-        permissions ->{
-                permissions.entries.forEach{
-                    val permissionsName = it.key
-                    val isGranted = it.value
 
-                    if(isGranted){
-                        Toast.makeText(this@MainActivity,
-                            "Permission granted you can read storage files.",Toast.LENGTH_SHORT).show()
-                    }else{
-                        if(permissionsName == Manifest.permission.READ_EXTERNAL_STORAGE){
-
-                        }
-                    }
-                }
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,10 +48,23 @@ class MainActivity : AppCompatActivity() {
         ibBrush.setOnClickListener{
             showBrushSizeChooserDialog()
         }
+        val openGalleryLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(ActivityResultContracts.StartActivityForResult()){
+             result->
+            if(result.resultCode == RESULT_OK && result.data!=null){
+                val imageBackground: ImageView = findViewById(R.id.iv_background)
+                imageBackground.setImageURI(result.data?.data)
+            }
+        }
 
         val ibGallery : ImageButton = findViewById(R.id.ib_gallery)
         ibGallery.setOnClickListener{
-                requestStoragePermission()
+            if(ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED){
+                val pickIntent = Intent(Intent.ACTION_PICK,MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+                openGalleryLauncher.launch(pickIntent)
+            }
+            else{
+                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), GALLERY_PERMISSION_CODE )
+            }
         }
     }
     private fun showBrushSizeChooserDialog(){
@@ -102,19 +103,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun requestStoragePermission(){
-        if(ActivityCompat.shouldShowRequestPermissionRationale(this,Manifest.permission.READ_EXTERNAL_STORAGE)){
-            showRationalDialog("Paint","Paint"+"needs to Access Your External Storage")
-        }else{
-            requestPermission.launch(arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE))
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if(requestCode == GALLERY_PERMISSION_CODE){
+            if(grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                Toast.makeText(this,"Permission Granted For Camera",Toast.LENGTH_SHORT).show()
+            }else{
+                Toast.makeText(this,"oops you denied the permission",Toast.LENGTH_SHORT).show()
+            }
         }
-    }
 
-    private fun showRationalDialog(title: String, message: String){
-            val builder: AlertDialog.Builder = AlertDialog.Builder(this)
-                builder.setTitle(title)
-                .setMessage(message)
-                .setPositiveButton("cancel"){dialog, _->dialog.dismiss()}
-        builder.create().show()
+    }
+    companion object{
+        private const val GALLERY_PERMISSION_CODE = 1
     }
 }
