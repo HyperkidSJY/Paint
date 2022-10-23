@@ -52,6 +52,7 @@ class MainActivity : AppCompatActivity() {
         ibUndo.setOnClickListener{
             drawingView?.onClickUndo()
         }
+
         val openGalleryLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(ActivityResultContracts.StartActivityForResult()){
              result->
             if(result.resultCode == RESULT_OK && result.data!=null){
